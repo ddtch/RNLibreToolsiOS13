@@ -73,9 +73,11 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
         let currentGlucose = history.factoryTrend[0].value
         var trend : [Double] = history.factoryTrend.map({((Double($0.value) / 18.0182) * 10).rounded() / 10})
         let current = trend.remove(at: 0)
+        let rawHistory: [Double] = history.rawValues.map({Double($0.value)})
         let response = [[
             "currentGluecose" : [current],
-            "trendHistory" : trend
+            "trendHistory" : trend,
+            "history" : rawHistory
         ]]
         sessionCompletionWithTrend?(.success(response))
 
