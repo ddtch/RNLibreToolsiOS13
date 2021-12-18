@@ -120,7 +120,12 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
             
             guard self.taskRequest != .activate else {
                 self.connectedTag?.activate(completion: { result in
-                    self.main.activateCompletion?(result)
+                    switch result {
+                    case .success(_):
+                        self.main.activateCompletion?(.success([["activation": true]]))
+                    case .failure(let error):
+                        self.main.activateCompletion?(.failure(error))
+                    }
                 })
                 session.invalidate()
                 return

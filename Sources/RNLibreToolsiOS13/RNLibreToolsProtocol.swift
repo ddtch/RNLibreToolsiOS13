@@ -9,6 +9,6 @@ import Foundation
 
 
 public protocol RnLibreToolsProtocol {
-    func activate(completion: @escaping (Result<Bool, LibreError>) -> Void)
+    func activate(completion: @escaping (Result<[[String : Bool]], LibreError>) -> Void)
     func startSession(completion: @escaping (Result<[[String:[Double]]], LibreError>) -> Void)
 }

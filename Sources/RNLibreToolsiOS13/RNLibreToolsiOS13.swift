@@ -7,15 +7,15 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
     public static var shared : RnLibreToolsProtocol = RNLibreToolsiOS13()
     private var nfc: NFC?
     
-    var sessionCompletionWithTrend : ((Result<[[String:[Double]]], LibreError>) -> Void)?
-    var activateCompletion : ((Result<Bool, LibreError>) -> Void)?
+    var sessionCompletionWithTrend : ((Result<[[String : [Double]]], LibreError>) -> Void)?
+    var activateCompletion : ((Result<[[String : Bool]], LibreError>) -> Void)?
     
     private init() {
     }
     
     var history = History()
     
-    public func activate(completion: @escaping (Result<Bool, LibreError>) -> Void) {
+    public func activate(completion: @escaping (Result<[[String : Bool]], LibreError>) -> Void) {
         self.activateCompletion = completion
         guard let nfc = nfc else {
             nfc = NFC()
