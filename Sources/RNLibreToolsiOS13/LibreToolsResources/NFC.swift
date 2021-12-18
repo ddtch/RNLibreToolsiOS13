@@ -122,7 +122,7 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
                 self.connectedTag?.activate(completion: { result in
                     switch result {
                     case .success(_):
-                        self.main.activateCompletion?(.success([["activation": true]]))
+                        self.main.activateCompletion?(.success([["activated": true]]))
                     case .failure(let error):
                         self.main.activateCompletion?(.failure(error))
                     }
