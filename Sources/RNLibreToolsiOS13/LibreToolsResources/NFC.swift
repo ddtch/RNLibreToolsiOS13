@@ -190,6 +190,7 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
                                     self.sensor.fram = Data(fram)
                                 }
                                 self.main.parseSensorData(self.sensor)
+                                session.invalidate()
                             }
                         }
                     }
