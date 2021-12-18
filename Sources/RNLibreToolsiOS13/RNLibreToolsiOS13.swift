@@ -21,10 +21,10 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
         guard let nfc = nfc else {
             nfc = NFC()
             nfc?.main = self
-            nfc?.taskRequest = .activate
+//            nfc?.taskRequest = .activate
             return
         }
-        nfc.taskRequest = .activate
+//        nfc.taskRequest = .activate
     }
     
     public func startSession(completion: @escaping (Result<[[String:[Double]]], LibreError>) -> Void) {
