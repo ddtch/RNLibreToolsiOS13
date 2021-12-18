@@ -1,9 +1,7 @@
 import Foundation
-import AVFoundation    // AudioServicesPlaySystemSound()
-
-
+import AVFoundation
+import Combine
 import CoreNFC
 
-extension NFC {
-    func activate(completion: @escaping(Result<Bool, LibreError>) -> Void) {}
-}
+
+

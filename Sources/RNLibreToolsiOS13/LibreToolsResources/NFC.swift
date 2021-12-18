@@ -43,6 +43,16 @@ extension Sensor {
     }
 }
 
+enum TaskRequest {
+    case enableStreaming
+    case readFRAM
+    case unlock
+    case dump
+    case reset
+    case prolong
+    case activate
+}
+
 
 class NFC: NSObject, NFCTagReaderSessionDelegate {
 
@@ -54,6 +64,13 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
 
     var isNFCAvailable: Bool {
         return NFCTagReaderSession.readingAvailable
+    }
+    
+    var taskRequest: TaskRequest? {
+        didSet {
+            guard taskRequest != nil else { return }
+            startSession()
+        }
     }
 
     func startSession() {
@@ -100,6 +117,14 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
                 return
             }
             self.connectedTag = tag
+            
+            guard self.taskRequest != .activate else {
+                self.connectedTag?.activate(completion: { result in
+                    self.main.activateCompletion?(result)
+                })
+                session.invalidate()
+                return
+            }
 
             // https://www.st.com/en/embedded-software/stsw-st25ios001.html#get-software
 
@@ -115,6 +140,8 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
                         // session.invalidate(errorMessage: "Error while getting patch info: " + error!.localizedDescription)
 //                        self.main.log("NFC: error while getting patch info: \(error!.localizedDescription)")
                     }
+                    
+                    
 
                     for i in 0 ..< requests {
 
@@ -345,4 +372,30 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
         }
     }
 
+}
+
+struct CustomCommand {
+    let code: Int
+
+    static let activate = CustomCommand(code: 0xA0)
+    static let getPatchInfo = CustomCommand(code: 0xA1)
+    static let lock = CustomCommand(code: 0xA2)
+    static let rawRead = CustomCommand(code: 0xA3)
+    static let libre2Universal = CustomCommand(code: 0xA1)
+}
+
+fileprivate extension NFCISO15693Tag {
+    func runCommand(_ cmd: CustomCommand, parameters: Data = Data(), completion: @escaping (Result<Bool, LibreError>)-> Void) {
+        self.customCommand(requestFlags: .highDataRate, customCommandCode: cmd.code, customRequestParameters: parameters) { data, error in
+            guard error == nil else {
+                completion(.failure(LibreError(errorCode: 3, errorMessage: error!.localizedDescription)))
+                return
+            }
+            completion(.success(true))
+        }
+    }
+    
+    func activate(completion: @escaping (Result<Bool, LibreError>)-> Void) {
+        runCommand(.activate, completion: completion)
+    }
 }
