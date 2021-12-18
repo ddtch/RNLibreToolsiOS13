@@ -78,6 +78,8 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
 
     public func tagReaderSession(_ session: NFCTagReaderSession, didDetect tags: [NFCTag]) {
 //        main.log("NFC: did detect tags")
+        
+        sensor = Sensor()
 
         guard let firstTag = tags.first else { return }
         guard case .iso15693(let tag) = firstTag else { return }
