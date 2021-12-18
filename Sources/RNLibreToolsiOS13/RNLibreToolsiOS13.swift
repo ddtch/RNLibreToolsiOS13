@@ -17,7 +17,6 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
     
     public func activate(completion: @escaping (Result<Bool, LibreError>) -> Void) {
         self.activateCompletion = completion
-        completion(.failure(LibreError(errorCode: 0, errorMessage: "Activation Not Yet Implemented")))
         guard let nfc = nfc else {
             nfc = NFC()
             nfc?.main = self
