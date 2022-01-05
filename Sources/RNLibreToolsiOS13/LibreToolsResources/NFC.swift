@@ -353,6 +353,8 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
 
 struct CustomCommand {
     let code: Int
+    
+    let parameters = Data([0xc2, 0xad, 0x75, 0x21])
 
     static let activate = CustomCommand(code: 0xA0)
     static let getPatchInfo = CustomCommand(code: 0xA1)
@@ -362,8 +364,8 @@ struct CustomCommand {
 }
 
 fileprivate extension NFCISO15693Tag {
-    func runCommand(_ cmd: CustomCommand, parameters: Data = Data(), completion: @escaping (Result<Bool, LibreError>)-> Void) {
-        self.customCommand(requestFlags: .highDataRate, customCommandCode: cmd.code, customRequestParameters: parameters) { data, error in
+    func runCommand(_ cmd: CustomCommand, completion: @escaping (Result<Bool, LibreError>)-> Void) {
+        self.customCommand(requestFlags: .highDataRate, customCommandCode: cmd.code, customRequestParameters: cmd.parameters) { data, error in
             guard error == nil else {
                 completion(.failure(LibreError(errorCode: 3, errorMessage: error!.localizedDescription)))
                 return
