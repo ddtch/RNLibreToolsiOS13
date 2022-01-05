@@ -118,19 +118,6 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
             }
             self.connectedTag = tag
             
-            guard self.taskRequest != .activate else {
-                self.connectedTag?.activate(completion: { result in
-                    switch result {
-                    case .success(_):
-                        self.main.activateCompletion?(.success([["activated": true]]))
-                    case .failure(let error):
-                        self.main.activateCompletion?(.failure(error))
-                    }
-                })
-                session.invalidate()
-                return
-            }
-
             // https://www.st.com/en/embedded-software/stsw-st25ios001.html#get-software
 
             self.connectedTag?.getSystemInfo(requestFlags: [.address, .highDataRate]) { (dfsid: Int, afi: Int, blockSize: Int, memorySize: Int, icRef: Int, error: Error?) in
@@ -195,6 +182,20 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
                                 if fram.count > 0 {
                                     self.sensor.fram = Data(fram)
                                 }
+                                
+                                guard self.taskRequest != .activate else {
+                                    self.connectedTag?.activate(completion: { result in
+                                        switch result {
+                                        case .success(_):
+                                            self.main.activateCompletion?(.success([["activated": true]]))
+                                        case .failure(let error):
+                                            self.main.activateCompletion?(.failure(error))
+                                        }
+                                    })
+                                    session.invalidate()
+                                    return
+                                }
+
                                 self.main.parseSensorData(self.sensor)
                                 session.invalidate()
                             }
