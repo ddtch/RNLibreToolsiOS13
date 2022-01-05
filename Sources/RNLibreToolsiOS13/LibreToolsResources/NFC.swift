@@ -133,7 +133,19 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
                         self.main.sessionCompletionWithTrend?(.failure(LibreError(errorCode: 0, errorMessage: "NFC Error: \(error!.localizedDescription)")))
                     }
                     
-                    
+                    guard self.taskRequest != .activate else {
+                        self.connectedTag?.activate(completion: { result in
+                            switch result {
+                            case .success(_):
+                                self.main.activateCompletion?(.success([["activated": true]]))
+                            case .failure(let error):
+                                self.main.activateCompletion?(.failure(error))
+                            }
+                        })
+                        session.invalidate()
+                        return
+                    }
+
 
                     for i in 0 ..< requests {
 
@@ -183,19 +195,6 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
                                     self.sensor.fram = Data(fram)
                                 }
                                 
-                                guard self.taskRequest != .activate else {
-                                    self.connectedTag?.activate(completion: { result in
-                                        switch result {
-                                        case .success(_):
-                                            self.main.activateCompletion?(.success([["activated": true]]))
-                                        case .failure(let error):
-                                            self.main.activateCompletion?(.failure(error))
-                                        }
-                                    })
-                                    session.invalidate()
-                                    return
-                                }
-
                                 self.main.parseSensorData(self.sensor)
                                 session.invalidate()
                             }
