@@ -73,7 +73,7 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
         var trend : [Double] = history.factoryTrend.map({Double($0.value)})
         //.map({((Double($0.value) / 18.0182) * 10).rounded() / 10})
         let current = trend.remove(at: 0)
-        let rawHistory: [Double] = history.rawTrend.map({Double($0.value)})//.map({((Double($0.value) / 18.0182) * 10).rounded() / 10})
+        let rawHistory: [Double] = history.rawValues.map({Double($0.value)})//.map({((Double($0.value) / 18.0182) * 10).rounded() / 10})
         let response = [[
             "currentGluecose" : [current],
             "trendHistory" : trend,
