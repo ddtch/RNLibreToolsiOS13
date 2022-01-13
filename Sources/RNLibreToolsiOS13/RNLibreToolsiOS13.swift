@@ -9,6 +9,7 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
     
     var sessionCompletionWithTrend : ((Result<[[String : [Double]]], LibreError>) -> Void)?
     var activateCompletion : ((Result<[[String : Bool]], LibreError>) -> Void)?
+    var sensorInfoCompletion : ((Result<[[String : [Double]]], LibreError>) -> Void)?
     
     private init() {
     }
@@ -33,6 +34,17 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
         nfc?.startSession()
     }
     
+    public func getSensorInfo(completion: @escaping (Result<[[String:[Double]]], LibreError>) -> Void) {
+        self.sensorInfoCompletion = completion
+        let count = 43
+        guard let nfc = nfc else {
+            nfc = NFC()
+            nfc?.main = self
+            nfc?.readFRAM(blocksCount: count)
+            return
+        }
+        nfc.taskRequest = .readFRAM
+    }
    
     
     func parseSensorData(_ sensor: Sensor) {
@@ -73,7 +85,7 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
         var trend : [Double] = history.factoryTrend.map({Double($0.value)})
         //.map({((Double($0.value) / 18.0182) * 10).rounded() / 10})
         let current = trend.remove(at: 0)
-        let rawHistory: [Double] = history.rawValues.map({Double($0.value)})//.map({((Double($0.value) / 18.0182) * 10).rounded() / 10})
+        let rawHistory: [Double] = history.factoryValues.map({Double($0.value)})//.map({((Double($0.value) / 18.0182) * 10).rounded() / 10})
         let response = [[
             "currentGluecose" : [current],
             "trendHistory" : trend,
