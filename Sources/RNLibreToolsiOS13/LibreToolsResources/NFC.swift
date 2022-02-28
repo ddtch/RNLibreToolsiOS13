@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import CoreNFC
 
 
@@ -65,7 +66,7 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
     var isNFCAvailable: Bool {
         return NFCTagReaderSession.readingAvailable
     }
-    
+
     var taskRequest: TaskRequest? {
         didSet {
             guard taskRequest != nil else { return }
@@ -95,7 +96,7 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
 
     public func tagReaderSession(_ session: NFCTagReaderSession, didDetect tags: [NFCTag]) {
 //        main.log("NFC: did detect tags")
-        
+
         sensor = Sensor()
 
         guard let firstTag = tags.first else { return }
@@ -117,7 +118,7 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
                 return
             }
             self.connectedTag = tag
-            
+
             // https://www.st.com/en/embedded-software/stsw-st25ios001.html#get-software
 
             self.connectedTag?.getSystemInfo(requestFlags: [.address, .highDataRate]) { (dfsid: Int, afi: Int, blockSize: Int, memorySize: Int, icRef: Int, error: Error?) in
@@ -132,7 +133,7 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
                          session.invalidate(errorMessage: "Error while getting patch info: " + error!.localizedDescription)
                         self.main.sessionCompletionWithTrend?(.failure(LibreError(errorCode: 0, errorMessage: "NFC Error: \(error!.localizedDescription)")))
                     }
-                    
+
                     guard self.taskRequest != .activate else {
                         self.connectedTag?.activate(completion: { result in
                             switch result {
@@ -195,7 +196,7 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
                                 if fram.count > 0 {
                                     self.sensor.fram = Data(fram)
                                 }
-                                
+
                                 self.main.parseSensorData(self.sensor)
                                 session.invalidate()
                             }
@@ -349,12 +350,67 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
             }
         }
     }
+    
+    func readBlock(number: UInt8) -> AnyPublisher<Data, Error> {
+           Future { promise in
+               self.readSingleBlock(requestFlags: .highDataRate, blockNumber: number) { data, error in
+                   guard error == nil else {
+                       promise(.failure(error!))
+                       return
+                   }
+                   promise(.success(data))
+               }
+           }.eraseToAnyPublisher()
+       }
+    
+    public func readFRAM(blocksCount: Int) -> AnyPublisher<Data, Error> {
+            Publishers.Sequence(
+                    sequence: (UInt8(0) ..< UInt8(blocksCount))
+                        .map { self.readBlock(number: $0)
+                            .catch { _ -> Future<Data, Error> in
+                                Future { $0(.success(Data())) }
+                        }
+                    }
+                )
+                .flatMap { $0 }
+                .collect()
+                .map { $0.reduce(Data(), +) }
+                .eraseToAnyPublisher()
+        }
+
+    func readBlock(number: UInt8) -> AnyPublisher<Data, Error> {
+           Future { promise in
+               self.readSingleBlock(requestFlags: .highDataRate, blockNumber: number) { data, error in
+                   guard error == nil else {
+                       promise(.failure(error!))
+                       return
+                   }
+                   promise(.success(data))
+               }
+           }.eraseToAnyPublisher()
+       }
+
+    public func readFRAM(blocksCount: Int) -> AnyPublisher<Data, Error> {
+            Publishers.Sequence(
+                    sequence: (UInt8(0) ..< UInt8(blocksCount))
+                        .map { self.readBlock(number: $0)
+                            .catch { _ -> Future<Data, Error> in
+                                Future { $0(.success(Data())) }
+                        }
+                    }
+                )
+                .flatMap { $0 }
+                .collect()
+                .map { $0.reduce(Data(), +) }
+                .eraseToAnyPublisher()
+        }
 
 }
 
 struct CustomCommand {
     let code: Int
-    
+    //
+
     let parameters = Data([0xc2, 0xad, 0x75, 0x21])
 
     static let activate = CustomCommand(code: 0xA0)
@@ -374,7 +430,7 @@ fileprivate extension NFCISO15693Tag {
             completion(.success(true))
         }
     }
-    
+
     func activate(completion: @escaping (Result<Bool, LibreError>)-> Void) {
         runCommand(.activate, completion: completion)
     }
