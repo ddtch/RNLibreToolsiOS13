@@ -9,7 +9,7 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
 
     var sessionCompletionWithTrend : ((Result<[[String : [Double]]], LibreError>) -> Void)?
     var activateCompletion : ((Result<[[String : Bool]], LibreError>) -> Void)?
-    var sensorInfoCompletion : ((Result<[[String : [Double]]], LibreError>) -> Void)?
+    var sensorInfoCompletion : ((Result<[Any], LibreError>) -> Void)?
 
     private init() {
     }
@@ -34,9 +34,9 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
         nfc?.startSession()
     }
 
-    public func getSensorInfo(completion: @escaping (Result<[[String:[Double]]], LibreError>) -> Void) {
+    public func getSensorInfo(completion: @escaping (Result<[Any], LibreError>) -> Void) {
         self.sensorInfoCompletion = completion
-        let count = 43
+        let count: Int = 43
         guard let nfc = nfc else {
             nfc = NFC()
             nfc?.main = self
