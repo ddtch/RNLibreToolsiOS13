@@ -1,21 +1,21 @@
 import Combine
 
 public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
-    
+
     public private(set) var text = "Hello, World!"
 
     public static var shared : RnLibreToolsProtocol = RNLibreToolsiOS13()
     private var nfc: NFC?
-    
+
     var sessionCompletionWithTrend : ((Result<[[String : [Double]]], LibreError>) -> Void)?
     var activateCompletion : ((Result<[[String : Bool]], LibreError>) -> Void)?
     var sensorInfoCompletion : ((Result<[[String : [Double]]], LibreError>) -> Void)?
-    
+
     private init() {
     }
-    
+
     var history = History()
-    
+
     public func activate(completion: @escaping (Result<[[String : Bool]], LibreError>) -> Void) {
         self.activateCompletion = completion
         guard let nfc = nfc else {
@@ -26,35 +26,35 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
         }
         nfc.taskRequest = .activate
     }
-    
+
     public func startSession(completion: @escaping (Result<[[String:[Double]]], LibreError>) -> Void) {
         self.sessionCompletionWithTrend = completion
         nfc = NFC()
         nfc?.main = self
         nfc?.startSession()
     }
-    
+
     public func getSensorInfo(completion: @escaping (Result<[[String:[Double]]], LibreError>) -> Void) {
         self.sensorInfoCompletion = completion
+        let count = 43
         guard let nfc = nfc else {
             nfc = NFC()
             nfc?.main = self
-            let count = 43
             nfc?.readFRAM(blocksCount: count)
             return
         }
         nfc.taskRequest = .readFRAM
     }
-   
-    
+
+
     func parseSensorData(_ sensor: Sensor) {
         sensor.detailFRAM()
         if sensor.history.count > 0 && sensor.fram.count >= 344 {
 
             let _ = sensor.calibrationInfo
-            
+
             history.rawTrend = sensor.trend
-            
+
             let factoryTrend = sensor.factoryTrend
             history.factoryTrend = factoryTrend
             history.rawValues = sensor.history
@@ -74,7 +74,7 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
 
 
     func didParseSensor(_ sensor: Sensor?) {
-        
+
         applyCalibration(sensor: sensor)
 
         guard let sensor = sensor else {
