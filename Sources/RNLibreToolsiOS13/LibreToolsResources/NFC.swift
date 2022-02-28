@@ -378,18 +378,6 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
                 .eraseToAnyPublisher()
         }
 
-    func readBlock(number: UInt8) -> AnyPublisher<Data, Error> {
-           Future { promise in
-               self.readSingleBlock(requestFlags: .highDataRate, blockNumber: number) { data, error in
-                   guard error == nil else {
-                       promise(.failure(error!))
-                       return
-                   }
-                   promise(.success(data))
-               }
-           }.eraseToAnyPublisher()
-       }
-
 }
 
 struct CustomCommand {
