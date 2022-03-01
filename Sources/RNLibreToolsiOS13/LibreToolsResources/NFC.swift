@@ -351,32 +351,33 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
         }
     }
 
-    func readBlock(number: UInt8) -> AnyPublisher<Data, Error> {
-           Future { promise in
-               self.readSingleBlock(requestFlags: .highDataRate, blockNumber: number) { data, error in
-                   guard error == nil else {
-                       promise(.failure(error!))
-                       return
-                   }
-                   promise(.success(data))
-               }
-           }.eraseToAnyPublisher()
-       }
+    // @TODO add this block later
+//    func readBlock(number: UInt8) -> AnyPublisher<Data, Error> {
+//           Future { promise in
+//               self.readSingleBlock(requestFlags: .highDataRate, blockNumber: number) { data, error in
+//                   guard error == nil else {
+//                       promise(.failure(error!))
+//                       return
+//                   }
+//                   promise(.success(data))
+//               }
+//           }.eraseToAnyPublisher()
+//       }
 
-    public func readFRAM(blocksCount: Int) -> AnyPublisher<Data, Error> {
-            Publishers.Sequence(
-                    sequence: (UInt8(0) ..< UInt8(blocksCount))
-                        .map { self.readBlock(number: $0)
-                            .catch { _ -> Future<Data, Error> in
-                                Future { $0(.success(Data())) }
-                        }
-                    }
-                )
-                .flatMap { $0 }
-                .collect()
-                .map { $0.reduce(Data(), +) }
-                .eraseToAnyPublisher()
-        }
+//    public func readFRAM(blocksCount: Int) -> AnyPublisher<Data, Error> {
+//            Publishers.Sequence(
+//                    sequence: (UInt8(0) ..< UInt8(blocksCount))
+//                        .map { self.readBlock(number: $0)
+//                            .catch { _ -> Future<Data, Error> in
+//                                Future { $0(.success(Data())) }
+//                        }
+//                    }
+//                )
+//                .flatMap { $0 }
+//                .collect()
+//                .map { $0.reduce(Data(), +) }
+//                .eraseToAnyPublisher()
+//        }
 
 }
 
