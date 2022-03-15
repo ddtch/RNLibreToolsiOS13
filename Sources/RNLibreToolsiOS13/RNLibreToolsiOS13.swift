@@ -2,14 +2,10 @@ import Combine
 
 public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
 
-    public private(set) var text = "Hello, World!"
-
     public static var shared : RnLibreToolsProtocol = RNLibreToolsiOS13()
-    private var nfc: NFC?
-
-    var sessionCompletionWithTrend : ((Result<[[String : [Double]]], LibreError>) -> Void)?
-    var activateCompletion : ((Result<[[String : Bool]], LibreError>) -> Void)?
-    var sensorInfoCompletion : ((Result<[Any], LibreError>) -> Void)?
+    private let sensor = NFCSensor()
+    private let logger = NaiveLogger()
+    private let debugLevel = 0
 
     private init() {
     }
@@ -17,38 +13,42 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
     var history = History()
 
     public func activate(completion: @escaping (Result<[[String : Bool]], LibreError>) -> Void) {
-        self.activateCompletion = completion
-        guard let nfc = nfc else {
-            nfc = NFC()
-            nfc?.main = self
-            nfc?.taskRequest = .activate
-            return
-        }
-        nfc.taskRequest = .activate
+        sensor.enque(operation: NFCActivateOperation(logger: NaiveLogger(), debugLevel: debugLevel) { result in
+            switch result {
+            case .failure(let err): completion(.failure(err))
+            case .success(let sensor): completion(.success(sensor.convertToActivateResponse()))
+            }
+        })
     }
 
     public func startSession(completion: @escaping (Result<[[String:[Double]]], LibreError>) -> Void) {
-        self.sessionCompletionWithTrend = completion
-        nfc = NFC()
-        nfc?.main = self
-        nfc?.startSession()
+        sensor.enque(operation: NFCStartSessionOperation(logger: NaiveLogger(), debugLevel: debugLevel) { [weak self] result in
+            switch result {
+            case .failure(let err): completion(.failure(err))
+            case .success(let sensor):
+                guard let history = self?.history else { return }
+                history.readDataFromSensor(sensor: sensor)
+                completion(.success(sensor.convertToStartSessionResponse(history: history)))
+            }
+        })
     }
 
     public func getSensorInfo(completion: @escaping (Result<[Any], LibreError>) -> Void) {
-        self.sensorInfoCompletion = completion
-        let count: Int = 43
-        guard let nfc = nfc else {
-            nfc = NFC()
-            nfc?.main = self
-//            nfc?.readFRAM(blocksCount: count)
-            return
-        }
-        nfc.taskRequest = .readFRAM
+        sensor.enque(operation: NFCReadFramOperation(logger: NaiveLogger(), debugLevel: debugLevel) { [weak self] result in
+            switch result {
+            case .failure(let err): completion(.failure(err))
+            case .success(let sensor):
+                guard let history = self?.history else { return }
+                
+                history.readDataFromSensor(sensor: sensor) // TODO @ddtch: validate if needed
+                completion(.success(sensor.convertToReadFramResponse()))
+            }
+        })
     }
 
 
-    func parseSensorData(_ sensor: Sensor) {
-        sensor.detailFRAM()
+    func parseSensorData(_ sensor: Sensor) throws {
+        try sensor.detailFRAM()
         if sensor.history.count > 0 && sensor.fram.count >= 344 {
 
             let _ = sensor.calibrationInfo
@@ -74,7 +74,7 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
 
 
     func didParseSensor(_ sensor: Sensor?) {
-
+/*
         applyCalibration(sensor: sensor)
 
         guard let sensor = sensor else {
@@ -86,6 +86,7 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
         //.map({((Double($0.value) / 18.0182) * 10).rounded() / 10})
         let current = trend.remove(at: 0)
         let rawHistory: [Double] = history.factoryValues.map({Double($0.value)})//.map({((Double($0.value) / 18.0182) * 10).rounded() / 10})
+
         let response = [[
             "currentGluecose" : [current],
             "trendHistory" : trend,
@@ -103,6 +104,7 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
             entries += history.factoryTrend.dropFirst() + [Glucose(currentGlucose, date: sensor.lastReadingDate)]
             entries = entries.filter{ $0.value > 0 && $0.id > -1 }
         }
+ */
     }
 }
 
@@ -117,4 +119,16 @@ class History: ObservableObject {
     @Published var calibratedTrend:  [Glucose] = []
     @Published var storedValues:     [Glucose] = []
     @Published var nightscoutValues: [Glucose] = []
+    
+    func readDataFromSensor(sensor: Sensor) {
+        if sensor.history.count > 0 && sensor.fram.count >= 344 {
+            rawTrend = sensor.trend
+            factoryTrend = factoryTrend
+            rawValues = sensor.history
+            factoryValues = sensor.factoryHistory
+        }
+        
+        calibratedTrend = []
+        calibratedValues = []
+    }
 }
