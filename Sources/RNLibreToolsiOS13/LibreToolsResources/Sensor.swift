@@ -1,6 +1,7 @@
+import AVFoundation
 import Foundation
+import CoreBluetooth
 import CoreNFC
-
 
 typealias SensorUid = Data
 typealias PatchInfo = Data
@@ -179,12 +180,15 @@ struct CalibrationInfo: Codable, Equatable {
 
 @available(iOS 13.0, *)
 class Sensor: ObservableObject {
-
+    
+    let logger: Logging
+    
     var type: SensorType = .unknown
     var family: SensorFamily = .libre
     var region: SensorRegion = .unknown
     var serial: String = ""
     var readerSerial: Data = Data()
+    var debugLevel: Int
 
 //    var transmitter: Transmitter?
 //    var main: MainDelegate!
@@ -197,7 +201,12 @@ class Sensor: ObservableObject {
 
     var crcReport: String = ""
 
-    var securityGeneration: Int = 0
+    private(set) var securityGeneration: Int = 0
+    
+    init(logger: Logging, debugLevel: Int) {
+        self.logger = logger
+        self.debugLevel = debugLevel
+    }
 
     @Published var patchInfo: PatchInfo = Data() {
         willSet(info) {
@@ -263,20 +272,119 @@ class Sensor: ObservableObject {
     // Gen2
     var streamingAuthenticationData: Data = Data(count: 10)    // formed when passed as third inout argument to verifyEnableStreamingResponse()
 
-//
-//    init(transmitter: Transmitter? = nil, main: MainDelegate? = nil) {
-//        self.transmitter = transmitter
-//        if transmitter != nil {
-//            self.main = transmitter!.main
-//        } else {
-//            self.main = main
-//        }
-//    }
+    open func scanHistory(tag: NFCISO15693Tag) async throws {}
     
-    init() {
-        
-    }
+    @discardableResult
+    func send(_ cmd: NFCCommand, tag: NFCISO15693Tag) async throws -> Data {
+         var data = Data()
+         do {
+             logger.info("NFC: sending \(type) '\(cmd.code.hex)\(cmd.parameters.count == 0 ? "" : " \(cmd.parameters.hex)")' custom command\(cmd.description == "" ? "" : " (\(cmd.description))")")
+             let output = try await tag.customCommand(requestFlags: .highDataRate, customCommandCode: cmd.code, customRequestParameters: cmd.parameters)
+             data = Data(output)
+         } catch {
+             logger.info("NFC: \(type) '\(cmd.description) \(cmd.code.hex)\(cmd.parameters.count == 0 ? "" : " \(cmd.parameters.hex)")' custom command error: \(error.localizedDescription) (ISO 15693 error 0x\(error.iso15693Code.hex): \(error.iso15693Description))")
+             throw error
+         }
+         return data
+     }
+    
+    func read(tag: NFCISO15693Tag, fromBlock start: Int, count blocks: Int, requesting: Int = 3, retries: Int = 5) async throws -> (Int, Data) {
+        var buffer = Data()
 
+        var remaining = blocks
+        var requested = requesting
+        var retry = 0
+
+        while remaining > 0 && retry <= retries {
+            let blockToRead = start + buffer.count / 8
+
+            do {
+                let dataArray = try await tag.readMultipleBlocks(requestFlags: .highDataRate, blockRange: NSRange(blockToRead ... blockToRead + requested - 1))
+
+                for data in dataArray {
+                    buffer += data
+                }
+
+                remaining -= requested
+
+                if remaining != 0 && remaining < requested {
+                    requested = remaining
+                }
+            } catch {
+                logger.error("NFC: error while reading multiple blocks #\(blockToRead.hex) - #\((blockToRead + requested - 1).hex) (\(blockToRead)-\(blockToRead + requested - 1)): \(error.localizedDescription) (ISO 15693 error 0x\(error.iso15693Code.hex): \(error.iso15693Description))")
+
+                retry += 1
+                guard retry <= retries else {
+                    throw LibreError.readFailure(error.localizedDescription)
+                }
+                
+                AudioServicesPlaySystemSound(1520)    // "pop" vibration
+                logger.info("NFC: retry # \(retry)...")
+                try await Task.sleep(nanoseconds: 250_000_000)
+            }
+
+            return (start, buffer)
+        }
+        
+        throw LibreError.readFailure("impossible case")
+    }
+    
+    open func readBlocks(tag: NFCISO15693Tag, from start: Int, count blocks: Int, requesting: Int = 3) async throws -> (Int, Data) {
+        var buffer = Data()
+
+        var remaining = blocks
+        var requested = requesting
+
+        while remaining > 0 {
+
+            let blockToRead = start + buffer.count / 8
+
+            var readCommand = NFCCommand(code: 0xB3, parameters: Data([UInt8(blockToRead & 0xFF), UInt8(blockToRead >> 8), UInt8(requested - 1)]))
+            if requested == 1 {
+                readCommand = NFCCommand(code: 0xB0, parameters: Data([UInt8(blockToRead & 0xFF), UInt8(blockToRead >> 8)]))
+            }
+
+            // FIXME: the Libre 3 replies to 'A1 21' with the error code C1
+            if securityGeneration > 1 {
+                if blockToRead <= 255 {
+                    readCommand = nfcCommand(.readBlocks, parameters: Data([UInt8(blockToRead), UInt8(requested - 1)]))
+                }
+            }
+
+            if buffer.count == 0 {
+                logger.info("NFC: sending '\(readCommand.code.hex) \(readCommand.parameters.hex)' custom command (\(type) read blocks)")
+            }
+
+            do {
+                let output = try await tag.customCommand(requestFlags: .highDataRate, customCommandCode: readCommand.code, customRequestParameters: readCommand.parameters)
+                let data = Data(output)
+
+                if securityGeneration < 2 {
+                    buffer += data
+                } else {
+                    logger.info("'\(readCommand.code.hex) \(readCommand.parameters.hex) \(readCommand.description)' command output (\(data.count) bytes): 0x\(data.hex)")
+                    buffer += data.suffix(data.count - 8)    // skip leading 0xA5 dummy bytes
+                }
+                remaining -= requested
+
+                if remaining != 0 && remaining < requested {
+                    requested = remaining
+                }
+
+            } catch {
+                logger.error(buffer.hexDump(header: "\(securityGeneration > 1 ? "`A1 21`" : "B0/B3") command output (\(buffer.count/8) blocks):", startBlock: start))
+
+                if requested == 1 {
+                    logger.error("NFC: error while reading block #\(blockToRead.hex): \(error.localizedDescription) (ISO 15693 error 0x\(error.iso15693Code.hex): \(error.iso15693Description))")
+                } else {
+                    logger.error("NFC: error while reading multiple blocks #\(blockToRead.hex) - #\((blockToRead + requested - 1).hex) (\(blockToRead)-\(blockToRead + requested - 1)): \(error.localizedDescription) (ISO 15693 error 0x\(error.iso15693Code.hex): \(error.iso15693Description))")
+                }
+                throw LibreError.readFailure("readBlock failed")
+            }
+        }
+
+        return (start, buffer)
+    }
 
     func parseFRAM() {
         updateCRCReport()
@@ -372,53 +480,52 @@ class Sensor: ObservableObject {
 
     }
 
+    open func isCrcReportFailed(_ crcReport: String) -> Bool {
+        return crcReport.contains("FAILED") && history.count > 0
+    }
 
-    func detailFRAM() {
+    func detailFRAM() throws {
         if encryptedFram.count > 0 && fram.count >= 344 {
-            print("\(fram.hexDump(header: "Sensor decrypted FRAM:", startBlock: 0))")
+            logger.info("\(fram.hexDump(header: "Sensor decrypted FRAM:", startBlock: 0))")
         }
+        
         if crcReport.count > 0 {
-            print(crcReport)
-            if crcReport.contains("FAILED") {
-                if history.count > 0 && type != .libre2 { // bogus raw data with Libre 1
-//                    main?.errorStatus("Error while validating sensor data")
-                    return
-                }
+            logger.info("crcReport: \(crcReport)")
+            if isCrcReportFailed(crcReport) {
+                throw LibreError.dataValidation("detailFram sensor data")
             }
         }
-        print("Sensor state: \(state.description.lowercased()) (0x\(state.rawValue.hex))")
+
+        logger.info("Sensor state: \(state.description.lowercased()) (0x\(state.rawValue.hex))")
 
         if state == .failure {
             let errorCode = fram[6]
             let failureAge = Int(fram[7]) + Int(fram[8]) << 8
             let failureInterval = failureAge == 0 ? "an unknown time" : "\(failureAge) minutes (\(failureAge.formattedInterval))"
-            print("Sensor failure error 0x\(errorCode.hex) (\(decodeFailure(error: errorCode))) at \(failureInterval) after activation.")
+            logger.error("Sensor failure error 0x\(errorCode.hex) (\(decodeFailure(error: errorCode))) at \(failureInterval) after activation.")
         }
 
         // TODO:
-//
-//        if fram.count >= 344 {
-//
-//            if main.settings.debugLevel > 0 {
-//                print("Sensor factory values: raw minimum threshold: \(fram[330]) (tied to SENSOR_SIGNAL_LOW error, should be 150 for a Libre 1), maximum ADC delta: \(fram[332]) (tied to FILTER_DELTA error, should be 90 for a Libre 1)")
-//            }
-//
-//            if initializations > 0 {
-//                print("Sensor initializations: \(initializations)")
-//            }
-//
-//            print("Sensor region: \(region.description) (\(fram[323].hex))")
-//        }
-//
-//        if maxLife > 0 {
-//            print("Sensor maximum life: \(maxLife) minutes (\(maxLife.formattedInterval))")
-//        }
-//
-//        if age > 0 {
-//            print("Sensor age: \(age) minutes (\(age.formattedInterval)), started on: \((lastReadingDate - Double(age) * 60).shortDateTime)")
-//        }
-    }
+        if fram.count >= 344 {
+            if debugLevel > 0 {
+                logger.info("Sensor factory values: raw minimum threshold: \(fram[330]) (tied to SENSOR_SIGNAL_LOW error, should be 150 for a Libre 1), maximum ADC delta: \(fram[332]) (tied to FILTER_DELTA error, should be 90 for a Libre 1)")
+            }
 
+            if initializations > 0 {
+                logger.info("Sensor initializations: \(initializations)")
+            }
+
+            logger.info("Sensor region: \(region.description) (0x\(fram[323].hex))")
+        }
+
+        if maxLife > 0 {
+            logger.info("Sensor maximum life: \(maxLife) minutes (\(maxLife.formattedInterval))")
+        }
+
+        if age > 0 {
+            logger.info("Sensor age: \(age) minutes (\(age.formattedInterval)), started on: \((lastReadingDate - Double(age) * 60).shortDateTime)")
+        }
+    }
 
     func updateCRCReport() {
         if fram.count < 344 {
@@ -445,13 +552,9 @@ class Sensor: ObservableObject {
             crcReport = report
         }
     }
-
-
-//    func execute(nfc: NFC, taskRequest: TaskRequest) async throws {
-//    }
-
+    
+    open func parsePatchInfo(tag: NFCISO15693Tag) async {}
 }
-
 
 func encodeStatusCode(_ status: UInt64) -> String {
     let alphabet = Array("0123456789ACDEFGHJKLMNPQRTUVWXYZ")
@@ -516,5 +619,72 @@ func decodeFailure(error: UInt8) -> String {
     case 0x28: return "battery low indication"
     case 0x34: return "from custom E1 and E2 command"
     default:   return "no specific info"
+    }
+}
+
+extension Sensor {
+    static func build(tag: NFCISO15693Tag, patchInfo: PatchInfo, systemInfo: NFCISO15693SystemInfo, logger: Logging, debugLevel: Int) async -> Sensor {
+        var sensor: Sensor
+        let uid = tag.identifier.hex
+        logger.info("NFC: IC identifier: \(uid)")
+
+        let sensorType = SensorType(patchInfo: patchInfo)
+        switch sensorType {
+        case .libre3:
+            sensor = Libre3(logger: logger, debugLevel: debugLevel)
+        case .libre2:
+            sensor = Libre2(logger: logger, debugLevel: debugLevel)
+        case .libreProH:
+            sensor = LibrePro(logger: logger, debugLevel: debugLevel)
+        default:
+            sensor = Sensor(logger: logger, debugLevel: debugLevel)
+        }
+        sensor.patchInfo = patchInfo
+
+        // https://www.st.com/en/embedded-software/stsw-st25ios001.html#get-software
+        var manufacturer = tag.icManufacturerCode.hex
+        if manufacturer == "07" {
+            manufacturer.append(" (Texas Instruments)")
+        } else if manufacturer == "7a" {
+            manufacturer.append(" (Abbott Diabetes Care)")
+            sensor.type = .libre3
+            sensor.securityGeneration = 3 // TODO
+        }
+        logger.info("NFC: IC manufacturer code: 0x\(manufacturer)")
+        logger.info("NFC: IC serial number: \(tag.icSerialNumber.hex)")
+
+        var firmware = "RF430"
+        switch tag.identifier[2] {
+        case 0xA0: firmware += "TAL152H Libre 1 A0 "
+        case 0xA4: firmware += "TAL160H Libre 2/Pro A4 "
+        case 0x00: firmware = "unknown Libre 3 "
+        default:   firmware += " unknown "
+        }
+        logger.info("NFC: \(firmware)firmware")
+
+        logger.info(String(format: "NFC: IC reference: 0x%X", systemInfo.icReference))
+        if systemInfo.applicationFamilyIdentifier != -1 {
+            logger.info(String(format: "NFC: application family id (AFI): %d", systemInfo.applicationFamilyIdentifier))
+        }
+        if systemInfo.dataStorageFormatIdentifier != -1 {
+            logger.info(String(format: "NFC: data storage format id: %d", systemInfo.dataStorageFormatIdentifier))
+        }
+
+        logger.info(String(format: "NFC: memory size: %d blocks", systemInfo.totalBlocks))
+        logger.info(String(format: "NFC: block size: %d", systemInfo.blockSize))
+
+        sensor.uid = Data(tag.identifier.reversed())
+        logger.info("NFC: sensor uid: \(sensor.uid.hex)")
+
+        if sensor.patchInfo.count > 0 {
+            logger.info("NFC: patch info: \(sensor.patchInfo.hex)")
+            logger.info("NFC: sensor type: \(sensor.type.rawValue)\(sensor.patchInfo.hex.hasPrefix("a2") ? " (new 'A2' kind)" : "")")
+            logger.info("NFC: sensor security generation [0-3]: \(sensor.securityGeneration)")
+        }
+
+        await sensor.parsePatchInfo(tag: tag)
+
+        logger.info("NFC: sensor serial number: \(sensor.serial)")
+        return sensor
     }
 }
