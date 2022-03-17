@@ -88,14 +88,14 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
     public func tagReaderSession(_ session: NFCTagReaderSession, didInvalidateWithError error: Error) {
         if let readerError = error as? NFCReaderError {
             if readerError.code != .readerSessionInvalidationErrorUserCanceled {
-//                main.log("NFC: \(readerError.localizedDescription)")
+                print("NFC: \(readerError.localizedDescription)")
                 session.invalidate(errorMessage: "Connection failure: \(readerError.localizedDescription)")
             }
         }
     }
 
     public func tagReaderSession(_ session: NFCTagReaderSession, didDetect tags: [NFCTag]) {
-//        main.log("NFC: did detect tags")
+        print("NFC: did detect tags")
 
         sensor = Sensor()
 
@@ -104,7 +104,7 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
 
         session.alertMessage = "Scan complete"
 
-        let blocks = 43
+        let blocks = sensor.type != .libreProH ? 43 : 22 + 24    // (32 * 6 / 8)
         let requestBlocks = 3
 
         let requests = Int(ceil(Double(blocks) / Double(requestBlocks)))
@@ -118,6 +118,7 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
                 return
             }
             self.connectedTag = tag
+            print("we are connected")
 
             // https://www.st.com/en/embedded-software/stsw-st25ios001.html#get-software
 
@@ -142,6 +143,20 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
                                 session.invalidate()
                             case .failure(let error):
                                 self.main.activateCompletion?(.failure(error))
+                                session.invalidate()
+                            }
+                        })
+                        return
+                    }
+                    
+                    guard self.taskRequest != .readFRAM else {
+                        self.connectedTag?.readFram(completion: { result in
+                            switch result {
+                            case .success(_):
+                                self.main.sensorInfoCompletion?(.success([result]))
+                                session.invalidate()
+                            case .failure(let error):
+                                self.main.sensorInfoCompletion?(.failure(error))
                                 session.invalidate()
                             }
                         })
@@ -365,19 +380,8 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
 //       }
 
 //    public func readFRAM(blocksCount: Int) -> AnyPublisher<Data, Error> {
-//            Publishers.Sequence(
-//                    sequence: (UInt8(0) ..< UInt8(blocksCount))
-//                        .map { self.readBlock(number: $0)
-//                            .catch { _ -> Future<Data, Error> in
-//                                Future { $0(.success(Data())) }
-//                        }
-//                    }
-//                )
-//                .flatMap { $0 }
-//                .collect()
-//                .map { $0.reduce(Data(), +) }
-//                .eraseToAnyPublisher()
-//        }
+//        sensor
+//    }
 
 }
 
@@ -392,6 +396,7 @@ struct CustomCommand {
     static let lock = CustomCommand(code: 0xA2)
     static let rawRead = CustomCommand(code: 0xA3)
     static let libre2Universal = CustomCommand(code: 0xA1)
+    static let readFram = CustomCommand(code: 0x21)
 }
 
 fileprivate extension NFCISO15693Tag {
@@ -407,5 +412,9 @@ fileprivate extension NFCISO15693Tag {
 
     func activate(completion: @escaping (Result<Bool, LibreError>)-> Void) {
         runCommand(.activate, completion: completion)
+    }
+    
+    func readFram(completion: @escaping (Result<Bool, LibreError>)-> Void) {
+        runCommand(.readFram, completion: completion)
     }
 }

@@ -40,7 +40,7 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
         guard let nfc = nfc else {
             nfc = NFC()
             nfc?.main = self
-//            nfc?.readFRAM(blocksCount: count)
+            nfc?.readFRAM(blocksCount: count)
             return
         }
         nfc.taskRequest = .readFRAM
