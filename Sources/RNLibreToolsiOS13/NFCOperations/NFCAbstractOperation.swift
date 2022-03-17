@@ -47,6 +47,7 @@ class NFCAbstractOperation: NSObject, NFCTagReaderSessionDelegate {
             return
         }
         self.tagSession = tagSession
+        print(tagSession)
         tagSession.alertMessage = "Hold the top of your iPhone near the Libre sensor until the second longer vibration"
         tagSession.begin()
     }
