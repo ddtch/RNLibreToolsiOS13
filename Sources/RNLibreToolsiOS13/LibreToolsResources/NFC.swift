@@ -396,7 +396,7 @@ struct CustomCommand {
     static let lock = CustomCommand(code: 0xA2)
     static let rawRead = CustomCommand(code: 0xA3)
     static let libre2Universal = CustomCommand(code: 0xA1)
-    static let readFram = CustomCommand(code: 0x21)
+    static let readFram = CustomCommand(code: 0x1F)
 }
 
 fileprivate extension NFCISO15693Tag {
