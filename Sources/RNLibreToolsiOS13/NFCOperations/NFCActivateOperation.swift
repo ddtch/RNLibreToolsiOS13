@@ -11,6 +11,8 @@ import CoreNFC
 final class NFCActivateOperation: NFCAbstractOperation {
     
     override func performTask(tag: NFCISO15693Tag, sensor: Sensor) async throws {
+        print(tag)
+        print(sensor)
         let securityManager = SecurityManager(sensor: sensor, tag: tag, logger: logger)
         await securityManager.performSecuritySetupIfNeeded()
         

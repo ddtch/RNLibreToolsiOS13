@@ -13,6 +13,7 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
     var history = History()
 
     public func activate(completion: @escaping (Result<[[String : Bool]], LibreError>) -> Void) {
+        print("Activating")
         sensor.enque(operation: NFCActivateOperation(logger: NaiveLogger(), debugLevel: debugLevel) { result in
             switch result {
             case .failure(let err): completion(.failure(err))
