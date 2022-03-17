@@ -66,6 +66,7 @@ final class NFCActivateOperation: NFCAbstractOperation {
 extension Sensor {
     func convertToActivateResponse() -> [[String : Bool]] {
         // TODO @ddtch: implement actual logic if needed
+        print("meow")
         return []
     }
 }
