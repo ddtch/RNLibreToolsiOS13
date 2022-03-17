@@ -387,9 +387,8 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
 
 struct CustomCommand {
     let code: Int
-    //
-
     let parameters = Data([0xc2, 0xad, 0x75, 0x21])
+    let description = ""
 
     static let activate = CustomCommand(code: 0xA0)
     static let getPatchInfo = CustomCommand(code: 0xA1)
