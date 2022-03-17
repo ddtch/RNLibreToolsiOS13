@@ -396,9 +396,6 @@ fileprivate extension NFCISO15693Tag {
     }
 
     func readFram(completion: @escaping (Result<Bool, LibreError>)-> Void) {
-        var sensor = Sensor()
-        // tst
-        sensor.extractFram()
         runCommand(.readFram, completion: completion)
     }
 }
