@@ -22,7 +22,9 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
     }
 
     public func startSession(completion: @escaping (Result<[[String:[Double]]], LibreError>) -> Void) {
-        sensor.enque(operation: NFCStartSessionOperation(logger: NaiveLogger(), debugLevel: debugLevel) { [weak self] result in
+        print("session started");
+        sensor.enque(operation: NFCStartSessionOperation(logger: NaiveLogger(), debugLevel: debugLevel) {
+            [weak self] result in
             switch result {
             case .failure(let err): completion(.failure(err))
             case .success(let sensor):
