@@ -150,6 +150,7 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
                     }
                     
                     guard self.taskRequest != .readFRAM else {
+//                        self.sensor.extractFram();
                         self.connectedTag?.readFram(completion: { result in
                             switch result {
                             case .success(_):
@@ -396,6 +397,7 @@ fileprivate extension NFCISO15693Tag {
     }
     
     func readFram(completion: @escaping (Result<Bool, LibreError>)-> Void) {
+        extractFram();
         runCommand(.readFram, completion: completion)
     }
 }
