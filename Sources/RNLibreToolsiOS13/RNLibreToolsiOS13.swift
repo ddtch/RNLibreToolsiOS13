@@ -36,13 +36,14 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
 
     public func getSensorInfo(completion: @escaping (Result<[Any], LibreError>) -> Void) {
         self.sensorInfoCompletion = completion
-        guard let nfc = nfc else {
+//        guard let nfc = nfc else {
             nfc = NFC()
             nfc?.main = self
-            nfc?.taskRequest = .readFRAM
-            return
-        }
-        nfc.taskRequest = .readFRAM
+            nfc?.sensor.extractFram()
+//            nfc?.taskRequest = .readFRAM
+//            return
+//        }
+//        nfc.taskRequest = .readFRAM
     }
 
 

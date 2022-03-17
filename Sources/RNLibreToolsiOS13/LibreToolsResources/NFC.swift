@@ -365,24 +365,6 @@ class NFC: NSObject, NFCTagReaderSessionDelegate {
             }
         }
     }
-
-    // @TODO add this block later
-//    func readBlock(number: UInt8) -> AnyPublisher<Data, Error> {
-//           Future { promise in
-//               self.readSingleBlock(requestFlags: .highDataRate, blockNumber: number) { data, error in
-//                   guard error == nil else {
-//                       promise(.failure(error!))
-//                       return
-//                   }
-//                   promise(.success(data))
-//               }
-//           }.eraseToAnyPublisher()
-//       }
-
-//    public func readFRAM(blocksCount: Int) -> AnyPublisher<Data, Error> {
-//        sensor
-//    }
-
 }
 
 struct CustomCommand {

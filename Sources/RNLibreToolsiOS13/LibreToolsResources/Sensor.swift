@@ -350,12 +350,8 @@ class Sensor: ObservableObject {
 
         guard fram.count >= 344 else { return }
 
-        // fram[322...323] (footer[2..3]) corresponds to patchInfo[2...3]
         region = SensorRegion(rawValue: Int(fram[323])) ?? .unknown
         maxLife = Int(fram[326]) + Int(fram[327]) << 8
-//        DispatchQueue.main.async {
-//            self.main?.settings.activeSensorMaxLife = self.maxLife
-//        }
 
         let i1 = readBits(fram, 2, 0, 3)
         let i2 = readBits(fram, 2, 3, 0xa)
@@ -366,10 +362,6 @@ class Sensor: ObservableObject {
         let i6 = readBits(fram, 0x150, 0x34, 0xc) << 2
 
         calibrationInfo = CalibrationInfo(i1: i1, i2: i2, i3: negativei3 ? -i3 : i3, i4: i4, i5: i5, i6: i6)
-//        DispatchQueue.main.async {
-//            self.main?.settings.activeSensorCalibrationInfo = self.calibrationInfo
-//        }
-
     }
 
 
@@ -413,6 +405,32 @@ class Sensor: ObservableObject {
         if age > 0 {
             print("Sensor age: \(age) minutes (\(age.formattedInterval)), started on: \((lastReadingDate - Double(age) * 60).shortDateTime)")
         }
+    }
+    
+    func extractFram() {
+        updateCRCReport()
+        guard !crcReport.contains("FAILED") else {
+            state = .unknown
+            return
+        }
+
+        if fram.count < 344 && encryptedFram.count > 0 { return }
+
+        if let sensorState = SensorState(rawValue: fram[4]) {
+            state = sensorState
+        }
+
+        guard fram.count >= 320 else { return }
+
+        age = Int(fram[316]) + Int(fram[317]) << 8    // body[-4]
+        initializations = Int(fram[318])
+        
+        guard fram.count >= 344 else { return }
+
+        region = SensorRegion(rawValue: Int(fram[323])) ?? .unknown
+        maxLife = Int(fram[326]) + Int(fram[327]) << 8
+        
+        print(age, region,  maxLife, initializations, state);
     }
 
 
