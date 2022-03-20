@@ -17,10 +17,13 @@ import CoreNFC
 // "NFC Exploitation with the RF430RFL152 and 'TAL152" in PoC||GTFO 0x20
 // https://archive.org/stream/pocorgtfo20#page/n6/mode/1up
 
-
+protocol NFCAbstractOperationListener: AnyObject {
+    func operationCompleted(_ operation: NFCAbstractOperation)
+}
 
 class NFCAbstractOperation: NSObject, NFCTagReaderSessionDelegate {
 
+    private weak var listener: NFCAbstractOperationListener?
     private var tagSession: NFCTagReaderSession?
     var connectedTag: NFCISO15693Tag?
     var sensor: Sensor?
@@ -29,23 +32,29 @@ class NFCAbstractOperation: NSObject, NFCTagReaderSessionDelegate {
         return NFCTagReaderSession.readingAvailable
     }
     
+    deinit {
+        logger.info("NFCAbstractOperation deinit")
+    }
+    
     let logger: Logging
     let completion: (Result<Sensor, LibreError>) -> Void
     let debugLevel: Int
     
     init(logger: Logging, debugLevel: Int, completion: @escaping (Result<Sensor, LibreError>) -> Void) {
-        self.logger = logger
+        self.logger = logger.with(prefix: "[\(UUID().uuidString)]")
         self.completion = completion
         self.debugLevel = debugLevel
     }
 
-    func start() {
+    func start(listener: NFCAbstractOperationListener) {
+        self.listener = listener
         // execute in the .main queue because of publishing changes to main's observables
         guard let tagSession = NFCTagReaderSession(pollingOption: [.iso15693], delegate: self, queue: .main) else {
             logger.error("Failed to create NFCTagReaderSession")
             errorHandler(LibreError.unknown("Failed to create NFCTagReaderSession"))
             return
         }
+        logger.info("NFC Operation start")
         self.tagSession = tagSession
         tagSession.alertMessage = "Hold the top of your iPhone near the Libre sensor until the second longer vibration"
         tagSession.begin()
@@ -119,6 +128,9 @@ class NFCAbstractOperation: NSObject, NFCTagReaderSessionDelegate {
                 try await self?.performTask(tag: tag, sensor: sensor)
                 session.invalidate()
                 completion(.success(sensor))
+                
+                guard let strongSelf = self else { return }
+                listener?.operationCompleted(strongSelf)
             } catch {
                 AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
                 session.invalidate(errorMessage: error.localizedDescription)
@@ -191,6 +203,7 @@ class NFCAbstractOperation: NSObject, NFCTagReaderSessionDelegate {
     
     func errorHandler(_ error: LibreError) {
         completion(.failure(error))
+        listener?.operationCompleted(self)
     }
 }
 
