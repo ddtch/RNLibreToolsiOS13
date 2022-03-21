@@ -312,22 +312,20 @@ class Sensor: ObservableObject {
                 }
             } catch {
                 logger.error("NFC: error while reading multiple blocks #\(blockToRead.hex) - #\((blockToRead + requested - 1).hex) (\(blockToRead)-\(blockToRead + requested - 1)): \(error.localizedDescription) (ISO 15693 error 0x\(error.iso15693Code.hex): \(error.iso15693Description))")
-
                 retry += 1
-                guard retry <= retries else {
+                if retry <= retries {
+                    AudioServicesPlaySystemSound(1520)    // "pop" vibration
+                    logger.info("NFC: retry # \(retry)...")
+                    try await Task.sleep(nanoseconds: 250_000_000)
+                } else {
                     throw LibreError.readFailure(error.localizedDescription)
                 }
-                
-                AudioServicesPlaySystemSound(1520)    // "pop" vibration
-                logger.info("NFC: retry # \(retry)...")
-                try await Task.sleep(nanoseconds: 250_000_000)
             }
-
-            return (start, buffer)
         }
-        
-        throw LibreError.readFailure("impossible case")
+
+        return (start, buffer)
     }
+
     
     open func readBlocks(tag: NFCISO15693Tag, from start: Int, count blocks: Int, requesting: Int = 3) async throws -> (Int, Data) {
         var buffer = Data()
