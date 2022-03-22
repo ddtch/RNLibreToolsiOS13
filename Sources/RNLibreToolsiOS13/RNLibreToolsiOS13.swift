@@ -38,10 +38,8 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
             switch result {
             case .failure(let err): completion(.failure(err))
             case .success(let sensor):
-                guard let history = self?.history else { return }
-                // TODO @ddtch: validate if needed
                 do {
-                    completion(.success(sensor.convertToReadFramResponse()))
+                    completion(.success(try sensor.convertToReadFramResponse()))
                 } catch {
                    if let err = error as? LibreError {
                      completion(.failure(err))
