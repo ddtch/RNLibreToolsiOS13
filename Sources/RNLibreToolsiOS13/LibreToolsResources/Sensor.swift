@@ -494,7 +494,7 @@ class Sensor: ObservableObject {
         var initializations: Int
     }
 
-    func detailFRAM() -> SensorInfo {
+    func detailFRAM() throws -> SensorInfo {
 
         let response = SensorInfo(
             type: type,
@@ -516,9 +516,7 @@ class Sensor: ObservableObject {
         if crcReport.count > 0 {
             logger.info("crcReport: \(crcReport)")
             if isCrcReportFailed(crcReport) {
-                let err = LibreError.dataValidation("detailFram sensor data")
-                logger.error("CRC report fails")
-                return response
+                throw LibreError.dataValidation("detailFram sensor data")
             }
         }
 
