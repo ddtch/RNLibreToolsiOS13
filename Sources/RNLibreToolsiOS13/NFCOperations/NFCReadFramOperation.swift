@@ -23,8 +23,8 @@ extension Sensor {
     func convertToReadFramResponse() throws -> [[String: AnyObject]] {
         do {
             let sensInfo = try self.detailFRAM()
-            print(sensInfo.age)
-            return [["sensorInfo": sensInfo as AnyObject]]
+            print([sensInfo])
+            return [["sensorInfo": [sensInfo] as AnyObject]]
         } catch {
             throw LibreError.readFailure("Can not get senser info")
         }
