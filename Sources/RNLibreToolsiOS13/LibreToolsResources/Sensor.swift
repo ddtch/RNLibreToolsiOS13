@@ -482,46 +482,24 @@ class Sensor: ObservableObject {
         return crcReport.contains("FAILED") && history.count > 0
     }
 
-    struct SensorInfo {
-        var type: SensorType
-        var family: SensorFamily
-        var region: SensorRegion
+    struct SensorInfo: Encodable {
+        var type: String
+        var family: String
+        var region: String
         var serial: String
         var state: String
         var lastReadingDate: Date
         var age: Int
         var maxLife: Int
         var initializations: Int
-        
-        func toJSON() -> String? {
-            let props = [
-                "type": self.type,
-                "family": self.family,
-                "region": self.region,
-                "serial": self.serial,
-                "state": self.state,
-                "lastReadingDate": self.lastReadingDate,
-                "age": self.age,
-                "maxLife": self.maxLife,
-                "initializations": self.initializations,
-            ] as [String : Any]
-            do {
-                let jsonData = try JSONSerialization.data(withJSONObject: props,
-                                                          options: .prettyPrinted)
-                return String(data: jsonData, encoding: String.Encoding.utf8)
-            } catch let error {
-                print("error converting to json: \(error)")
-                return nil
-            }
-        }
     }
 
     func detailFRAM() throws -> String {
 
         let response = SensorInfo(
-            type: type,
-            family: family,
-            region: region,
+            type: String(describing: type),
+            family: String(describing: family),
+            region: String(describing: region),
             serial: serial,
             state: state.description,
             lastReadingDate: lastReadingDate,
@@ -571,8 +549,12 @@ class Sensor: ObservableObject {
         if age > 0 {
             logger.info("Sensor age: \(age) minutes (\(age.formattedInterval)), started on: \((lastReadingDate - Double(age) * 60).shortDateTime)")
         }
+        
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+        let data = try encoder.encode(response)
 
-        return response.toJSON() ?? ""
+        return String(data: data, encoding: .utf8)!
     }
 
     func updateCRCReport() {
