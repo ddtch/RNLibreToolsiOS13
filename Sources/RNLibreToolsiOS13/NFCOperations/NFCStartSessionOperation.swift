@@ -15,8 +15,6 @@ final class NFCStartSessionOperation: NFCAbstractOperation {
         try await sensor.scanHistory(tag: tag)
         logger.info(data.hexDump(header: "NFC: did read \(data.count / 8) FRAM blocks:", startBlock: start))
         try await securityManager.passPostSecurityChallengedIfNeeded(data: data)
-        try sensor.detailFRAM()
-        
         // TODO: @ddtch applyOOP if needed
     }
 }

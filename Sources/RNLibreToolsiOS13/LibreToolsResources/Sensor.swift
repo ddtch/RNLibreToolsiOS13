@@ -180,9 +180,9 @@ struct CalibrationInfo: Codable, Equatable {
 
 @available(iOS 13.0, *)
 class Sensor: ObservableObject {
-    
+
     let logger: Logging
-    
+
     var type: SensorType = .unknown
     var family: SensorFamily = .libre
     var region: SensorRegion = .unknown
@@ -202,7 +202,7 @@ class Sensor: ObservableObject {
     var crcReport: String = ""
 
     private(set) var securityGeneration: Int = 0
-    
+
     init(logger: Logging, debugLevel: Int) {
         self.logger = logger
         self.debugLevel = debugLevel
@@ -273,7 +273,7 @@ class Sensor: ObservableObject {
     var streamingAuthenticationData: Data = Data(count: 10)    // formed when passed as third inout argument to verifyEnableStreamingResponse()
 
     open func scanHistory(tag: NFCISO15693Tag) async throws {}
-    
+
     @discardableResult
     func send(_ cmd: NFCCommand, tag: NFCISO15693Tag) async throws -> Data {
          var data = Data()
@@ -287,7 +287,7 @@ class Sensor: ObservableObject {
          }
          return data
      }
-    
+
     func read(tag: NFCISO15693Tag, fromBlock start: Int, count blocks: Int, requesting: Int = 3, retries: Int = 5) async throws -> (Int, Data) {
         var buffer = Data()
 
@@ -326,7 +326,7 @@ class Sensor: ObservableObject {
         return (start, buffer)
     }
 
-    
+
     open func readBlocks(tag: NFCISO15693Tag, from start: Int, count blocks: Int, requesting: Int = 3) async throws -> (Int, Data) {
         var buffer = Data()
 
@@ -482,11 +482,37 @@ class Sensor: ObservableObject {
         return crcReport.contains("FAILED") && history.count > 0
     }
 
-    func detailFRAM() throws {
+    struct SensorInfo: Encodable {
+        var type: String
+        var family: String
+        var region: String
+        var serial: String
+        var state: String
+        var lastReadingDate: Date
+        var age: Int
+        var maxLife: Int
+        var initializations: Int
+    }
+
+    func detailFRAM() throws -> String {
+
+        let response = SensorInfo(
+            type: String(describing: type),
+            family: String(describing: family),
+            region: String(describing: region),
+            serial: serial,
+            state: state.description,
+            lastReadingDate: lastReadingDate,
+            age: age,
+            maxLife: maxLife,
+            initializations: initializations
+        )
+
+
         if encryptedFram.count > 0 && fram.count >= 344 {
             logger.info("\(fram.hexDump(header: "Sensor decrypted FRAM:", startBlock: 0))")
         }
-        
+
         if crcReport.count > 0 {
             logger.info("crcReport: \(crcReport)")
             if isCrcReportFailed(crcReport) {
@@ -523,6 +549,12 @@ class Sensor: ObservableObject {
         if age > 0 {
             logger.info("Sensor age: \(age) minutes (\(age.formattedInterval)), started on: \((lastReadingDate - Double(age) * 60).shortDateTime)")
         }
+        
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+        let data = try encoder.encode(response)
+
+        return String(data: data, encoding: .utf8)!
     }
 
     func updateCRCReport() {
@@ -550,7 +582,7 @@ class Sensor: ObservableObject {
             crcReport = report
         }
     }
-    
+
     open func parsePatchInfo(tag: NFCISO15693Tag) async {}
 }
 
