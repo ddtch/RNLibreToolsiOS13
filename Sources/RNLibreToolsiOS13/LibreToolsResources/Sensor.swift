@@ -494,7 +494,7 @@ class Sensor: ObservableObject {
         var initializations: Int
     }
 
-    func detailFRAM() throws -> SensorInfo {
+    func detailFRAM() throws -> AnyObject {
 
         let response = SensorInfo(
             type: type,
@@ -550,7 +550,17 @@ class Sensor: ObservableObject {
             logger.info("Sensor age: \(age) minutes (\(age.formattedInterval)), started on: \((lastReadingDate - Double(age) * 60).shortDateTime)")
         }
 
-        return response
+        return [
+            [["type"]: response.type],
+            [["family"]: response.family],
+            [["region"]: response.region],
+            [["serial"]: response.serial],
+            [["state"]: response.state],
+            [["lastReadingDate"]: response.lastReadingDate],
+            [["age"]: response.age],
+            [["maxLife"]: response.maxLife],
+            [["initializations"]: response.initializations]
+        ] as AnyObject
     }
 
     func updateCRCReport() {
