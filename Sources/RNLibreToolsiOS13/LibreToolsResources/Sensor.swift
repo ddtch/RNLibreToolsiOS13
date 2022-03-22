@@ -492,9 +492,31 @@ class Sensor: ObservableObject {
         var age: Int
         var maxLife: Int
         var initializations: Int
+        
+        func toJSON() -> String? {
+            let props = [
+                "type": self.type,
+                "family": self.family,
+                "region": self.region,
+                "serial": self.serial,
+                "state": self.state,
+                "lastReadingDate": self.lastReadingDate,
+                "age": self.age,
+                "maxLife": self.maxLife,
+                "initializations": self.initializations,
+            ] as [String : Any]
+            do {
+                let jsonData = try JSONSerialization.data(withJSONObject: props,
+                                                          options: .prettyPrinted)
+                return String(data: jsonData, encoding: String.Encoding.utf8)
+            } catch let error {
+                print("error converting to json: \(error)")
+                return nil
+            }
+        }
     }
 
-    func detailFRAM() throws -> AnyObject {
+    func detailFRAM() throws -> String {
 
         let response = SensorInfo(
             type: type,
@@ -550,17 +572,7 @@ class Sensor: ObservableObject {
             logger.info("Sensor age: \(age) minutes (\(age.formattedInterval)), started on: \((lastReadingDate - Double(age) * 60).shortDateTime)")
         }
 
-        return [
-            [["type"]: response.type],
-            [["family"]: response.family],
-            [["region"]: response.region],
-            [["serial"]: response.serial],
-            [["state"]: response.state],
-            [["lastReadingDate"]: response.lastReadingDate],
-            [["age"]: response.age],
-            [["maxLife"]: response.maxLife],
-            [["initializations"]: response.initializations]
-        ] as AnyObject
+        return response.toJSON() ?? ""
     }
 
     func updateCRCReport() {

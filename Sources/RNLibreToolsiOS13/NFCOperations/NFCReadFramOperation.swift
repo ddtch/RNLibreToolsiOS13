@@ -20,11 +20,9 @@ final class NFCReadFramOperation: NFCAbstractOperation {
 
 extension Sensor {
 
-    func convertToReadFramResponse() throws -> [[String: AnyObject]] {
+    func convertToReadFramResponse() throws -> [[String: String]] {
         do {
             let sensInfo = try self.detailFRAM()
-            print(sensInfo)
-            print([["sensorInfo": sensInfo]])
             return [["sensorInfo": sensInfo]]
         } catch {
             throw LibreError.readFailure("Can not get senser info")
