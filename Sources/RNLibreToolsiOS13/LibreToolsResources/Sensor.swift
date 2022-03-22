@@ -517,6 +517,7 @@ class Sensor: ObservableObject {
             logger.info("crcReport: \(crcReport)")
             if isCrcReportFailed(crcReport) {
                 let err = LibreError.dataValidation("detailFram sensor data")
+                logger.error("CRC report fails")
                 return response
             }
         }

@@ -226,6 +226,7 @@ class LibrePro: Sensor {
             if crcReport.contains("FAILED") {
                 if history.count > 0 { // bogus raw data
                     // main?.errorStatus("Error while validating sensor data")
+                    logger.error("CRC FAILED")
                     return response
                 }
             }
