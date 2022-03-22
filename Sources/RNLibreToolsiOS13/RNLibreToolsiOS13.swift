@@ -39,8 +39,11 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
             case .failure(let err): completion(.failure(err))
             case .success(let sensor):
                 guard let history = self?.history else { return }
-                
-                history.readDataFromSensor(sensor: sensor) // TODO @ddtch: validate if needed
+                // TODO @ddtch: validate if needed
+                history.readDataFromSensor(sensor: sensor)
+                print(history)
+                print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                print(sensor)
                 completion(.success(sensor.convertToReadFramResponse()))
             }
         })
