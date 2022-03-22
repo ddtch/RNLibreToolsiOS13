@@ -482,7 +482,7 @@ class Sensor: ObservableObject {
         return crcReport.contains("FAILED") && history.count > 0
     }
 
-    struct sensorInfo {
+    struct SensorInfo {
         var type: SensorType
         var family: SensorFamily
         var region: SensorRegion
@@ -494,9 +494,9 @@ class Sensor: ObservableObject {
         var initializations: Int
     }
 
-    func detailFRAM() -> AnyObject {
+    func detailFRAM() -> SensorInfo {
 
-        let response = sensorInfo(
+        let response = SensorInfo(
             type: type,
             family: family,
             region: region,
@@ -513,12 +513,13 @@ class Sensor: ObservableObject {
             logger.info("\(fram.hexDump(header: "Sensor decrypted FRAM:", startBlock: 0))")
         }
 
-//        if crcReport.count > 0 {
-//            logger.info("crcReport: \(crcReport)")
-//            if isCrcReportFailed(crcReport) {
-//                throw LibreError.dataValidation("detailFram sensor data")
-//            }
-//        }
+        if crcReport.count > 0 {
+            logger.info("crcReport: \(crcReport)")
+            if isCrcReportFailed(crcReport) {
+                let err = LibreError.dataValidation("detailFram sensor data")
+                return response
+            }
+        }
 
         logger.info("Sensor state: \(state.description.lowercased()) (0x\(state.rawValue.hex))")
 
@@ -549,8 +550,8 @@ class Sensor: ObservableObject {
         if age > 0 {
             logger.info("Sensor age: \(age) minutes (\(age.formattedInterval)), started on: \((lastReadingDate - Double(age) * 60).shortDateTime)")
         }
-        
-        return [response]
+
+        return response
     }
 
     func updateCRCReport() {

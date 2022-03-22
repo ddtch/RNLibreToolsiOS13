@@ -15,15 +15,15 @@ final class NFCReadFramOperation: NFCAbstractOperation {
         try await sensor.scanHistory(tag: tag)
         logger.info(data.hexDump(header: "NFC: did read \(data.count / 8) FRAM blocks:", startBlock: start))
         try await securityManager.passPostSecurityChallengedIfNeeded(data: data)
-        let sensInfo = try sensor.detailFRAM()
     }
 }
 
 extension Sensor {
-    
-    func convertToReadFramResponse() -> [Any] {
+
+    func convertToReadFramResponse() -> AnyObject {
+        let sensInfo = try self.detailFRAM()
         // TODO @ddtch: implement actual logic
-        return []
+        return sensInfo as AnyObject;
     }
 }
 

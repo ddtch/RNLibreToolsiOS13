@@ -33,18 +33,22 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
         })
     }
 
-    public func getSensorInfo(completion: @escaping (Result<[Any], LibreError>) -> Void) {
-        sensor.enque(operation: NFCReadFramOperation(logger: NaiveLogger(), debugLevel: debugLevel) { [weak self] result in
+    public func getSensorInfo(completion: @escaping (Result<AnyObject, LibreError>) -> Void) {
+        sensor.enque(operation: NFCReadFramOperation(logger: NaiveLogger(), debugLevel: debugLevel) { result in
             switch result {
             case .failure(let err): completion(.failure(err))
             case .success(let sensor):
                 guard let history = self?.history else { return }
                 // TODO @ddtch: validate if needed
-                history.readDataFromSensor(sensor: sensor)
-                print(history)
-                print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                print(sensor)
-                completion(.success(sensor.convertToReadFramResponse()))
+                do {
+                    completion(.success(sensor.convertToReadFramResponse()))
+                } catch {
+                   if let err = error as? LibreError {
+                     completion(.failure(err))
+                   } else {
+                     completion(.failure(LibreError.unexpected(error.localizedDescription)))
+                   }
+                }
             }
         })
     }
@@ -61,7 +65,7 @@ class History: ObservableObject {
     @Published var calibratedTrend:  [Glucose] = []
     @Published var storedValues:     [Glucose] = []
     @Published var nightscoutValues: [Glucose] = []
-    
+
     func readDataFromSensor(sensor: Sensor) {
         if sensor.history.count > 0 && sensor.fram.count >= 344 {
             rawTrend = sensor.trend
@@ -69,7 +73,7 @@ class History: ObservableObject {
             rawValues = sensor.history
             factoryValues = sensor.factoryHistory
         }
-        
+
         calibratedTrend = []
         calibratedValues = []
     }

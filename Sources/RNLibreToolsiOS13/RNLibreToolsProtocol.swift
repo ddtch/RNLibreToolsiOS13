@@ -11,5 +11,5 @@ import Foundation
 public protocol RnLibreToolsProtocol {
     func activate(completion: @escaping (Result<[[String : Bool]], LibreError>) -> Void)
     func startSession(completion: @escaping (Result<[[String:[Double]]], LibreError>) -> Void)
-    func getSensorInfo(completion: @escaping (Result<[Any], LibreError>) -> Void)
+    func getSensorInfo(completion: @escaping (Result<AnyObject, LibreError>) -> Void)
 }
