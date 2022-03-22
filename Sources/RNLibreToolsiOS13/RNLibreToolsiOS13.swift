@@ -33,13 +33,13 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
         })
     }
 
-    public func getSensorInfo(completion: @escaping (Result<AnyObject, LibreError>) -> Void) {
+    public func getSensorInfo(completion: @escaping (Result<[Any], LibreError>) -> Void) {
         sensor.enque(operation: NFCReadFramOperation(logger: NaiveLogger(), debugLevel: debugLevel) { result in
             switch result {
             case .failure(let err): completion(.failure(err))
             case .success(let sensor):
                 do {
-                    completion(.success(try sensor.convertToReadFramResponse() as AnyObject))
+                    completion(.success(try sensor.convertToReadFramResponse() as [Any]))
                 } catch {
                    if let err = error as? LibreError {
                      completion(.failure(err))

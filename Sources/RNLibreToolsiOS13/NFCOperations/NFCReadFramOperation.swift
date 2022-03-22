@@ -20,13 +20,14 @@ final class NFCReadFramOperation: NFCAbstractOperation {
 
 extension Sensor {
 
-    func convertToReadFramResponse() throws -> AnyObject {
+    func convertToReadFramResponse() throws -> [Any] {
         let sensInfo = try self.detailFRAM()
         if (sensInfo.age <= 0) {
             throw LibreError.readFailure("Can not get senser info")
         }
         // TODO @ddtch: implement actual logic
-        return sensInfo as AnyObject;
+        return ["sensorInfo", [sensInfo]] as [Any]
+        
     }
 }
 
