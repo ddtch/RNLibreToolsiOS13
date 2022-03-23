@@ -6,6 +6,18 @@ import CoreNFC
 typealias SensorUid = Data
 typealias PatchInfo = Data
 
+struct SensorInfo: Encodable {
+    var type: String
+    var family: String
+    var region: String
+    var serial: String
+    var state: String
+    var lastReadingDate: Date
+    var age: Int
+    var maxLife: Int
+    var initializations: Int
+}
+
 @available(iOS 13.0, *)
 enum SensorType: String, CustomStringConvertible {
     case libre1       = "Libre 1"
@@ -482,19 +494,7 @@ class Sensor: ObservableObject {
         return crcReport.contains("FAILED") && history.count > 0
     }
 
-    struct SensorInfo: Encodable {
-        var type: String
-        var family: String
-        var region: String
-        var serial: String
-        var state: String
-        var lastReadingDate: Date
-        var age: Int
-        var maxLife: Int
-        var initializations: Int
-    }
-
-    func detailFRAM() throws -> String {
+    open func detailFRAM() throws -> SensorInfo {
 
         let response = SensorInfo(
             type: String(describing: type),
@@ -507,7 +507,6 @@ class Sensor: ObservableObject {
             maxLife: maxLife,
             initializations: initializations
         )
-
 
         if encryptedFram.count > 0 && fram.count >= 344 {
             logger.info("\(fram.hexDump(header: "Sensor decrypted FRAM:", startBlock: 0))")
@@ -549,12 +548,7 @@ class Sensor: ObservableObject {
         if age > 0 {
             logger.info("Sensor age: \(age) minutes (\(age.formattedInterval)), started on: \((lastReadingDate - Double(age) * 60).shortDateTime)")
         }
-        
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = .prettyPrinted
-        let data = try encoder.encode(response)
-
-        return String(data: data, encoding: .utf8)!
+        return response
     }
 
     func updateCRCReport() {

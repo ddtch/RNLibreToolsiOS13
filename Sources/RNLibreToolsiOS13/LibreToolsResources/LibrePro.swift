@@ -192,24 +192,12 @@ class LibrePro: Sensor {
          */
     }
 
-    struct SensorInfo {
-        var type: SensorType
-        var family: SensorFamily
-        var region: SensorRegion
-        var serial: String
-        var state: String
-        var lastReadingDate: Date
-        var age: Int
-        var maxLife: Int
-        var initializations: Int
-    }
-
-    func detailFRAM() -> SensorInfo {
+    override func detailFRAM() throws -> SensorInfo {
         
         let response = SensorInfo(
-            type: type,
-            family: family,
-            region: region,
+            type: String(describing: type),
+            family: String(describing: family),
+            region: String(describing: region),
             serial: serial,
             state: state.description,
             lastReadingDate: lastReadingDate,
@@ -223,12 +211,8 @@ class LibrePro: Sensor {
 
         if crcReport.count > 0 {
             logger.info(crcReport)
-            if crcReport.contains("FAILED") {
-                if history.count > 0 { // bogus raw data
-                    // main?.errorStatus("Error while validating sensor data")
-                    logger.error("CRC FAILED")
-                    return response
-                }
+            if crcReport.contains("FAILED") && history.count > 0 { // bogus raw data
+                throw LibreError.dataValidation("crc failed")
             }
         }
 

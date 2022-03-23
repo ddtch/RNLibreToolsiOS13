@@ -20,14 +20,16 @@ final class NFCReadFramOperation: NFCAbstractOperation {
 
 extension Sensor {
 
-    func convertToReadFramResponse() throws -> [[String: String]] {
-        do {
-            let sensInfo = try self.detailFRAM()
-            return [["sensorInfo": sensInfo]]
-        } catch {
-            throw LibreError.readFailure("Can not get senser info")
+    func convertToReadFramResponse(sensorInfo: SensorInfo) throws -> [[String: String]] {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+        let data = try encoder.encode(sensorInfo)
+
+        guard let jsonString = String(data: data, encoding: .utf8) else {
+            throw LibreError.unexpected("bad data") // should never happen
         }
         
+        return [["sensorInfo": jsonString]]
     }
 }
 
