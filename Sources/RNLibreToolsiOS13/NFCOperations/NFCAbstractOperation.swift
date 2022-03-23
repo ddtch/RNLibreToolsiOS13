@@ -27,13 +27,20 @@ class NFCAbstractOperation: NSObject, NFCTagReaderSessionDelegate {
     private var tagSession: NFCTagReaderSession?
     var connectedTag: NFCISO15693Tag?
     var sensor: Sensor?
+    var executionStarted: Date?
 
     var isNFCAvailable: Bool {
         return NFCTagReaderSession.readingAvailable
     }
     
     deinit {
-        logger.info("NFCAbstractOperation deinit")
+        var stringComponents = ["\(whoami) deinit"]
+        if let executionStarted = executionStarted {
+            let executionTime = Date().timeIntervalSince(executionStarted)
+            stringComponents.append("execution time: \(executionTime.asString)")
+        }
+        
+        logger.info(stringComponents.joined(separator: ", "))
     }
     
     let logger: Logging
@@ -47,6 +54,7 @@ class NFCAbstractOperation: NSObject, NFCTagReaderSessionDelegate {
     }
 
     func start(listener: NFCAbstractOperationListener) {
+        self.executionStarted = Date()
         self.listener = listener
         // execute in the .main queue because of publishing changes to main's observables
         guard let tagSession = NFCTagReaderSession(pollingOption: [.iso15693], delegate: self, queue: .main) else {
@@ -54,7 +62,7 @@ class NFCAbstractOperation: NSObject, NFCTagReaderSessionDelegate {
             errorHandler(LibreError.unknown("Failed to create NFCTagReaderSession"))
             return
         }
-        logger.info("NFC Operation start")
+        logger.info("\(whoami) started")
         self.tagSession = tagSession
         tagSession.alertMessage = "Hold the top of your iPhone near the Libre sensor until the second longer vibration"
         tagSession.begin()
@@ -339,5 +347,27 @@ extension Sensor {
         }
 
         return NFCCommand(code: 0xA1, parameters: Data([code.rawValue]) + parameters, description: code.description)
+    }
+}
+
+fileprivate extension NFCAbstractOperation {
+    
+    var whoami: String {
+        return NSStringFromClass(type(of: self))
+    }
+}
+
+fileprivate extension TimeInterval {
+    
+    var asString: String {
+        guard self > 0 && self < Double.infinity else {
+            return "unknown"
+        }
+        
+        let time = Int(self)
+        let ms = Int((self.truncatingRemainder(dividingBy: 1)) * 1000)
+        let seconds = time % 60
+
+        return String(format: "%0.2d.%0.3d", hours, minutes, seconds, ms)
     }
 }

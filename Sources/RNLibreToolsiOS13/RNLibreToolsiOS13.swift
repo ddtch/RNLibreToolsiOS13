@@ -39,11 +39,12 @@ public class RNLibreToolsiOS13 : RnLibreToolsProtocol {
             case .failure(let err): completion(.failure(err))
             case .success(let sensor):
                 do {
-                    let sensInfo = try sensor.convertToReadFramResponse()
+                    let sensorInfo = try sensor.detailFRAM()
+                    let response = try sensor.convertToReadFramResponse(sensorInfo: sensorInfo)
                     self.logger.info("+++++++++++++++++++++++++++++++++++++++++++++++++++")
-                    print(sensInfo)
+                    self.logger.info(response.description)
                     self.logger.info("+++++++++++++++++++++++++++++++++++++++++++++++++++")
-                    completion(.success(sensInfo))
+                    completion(.success(response))
                 } catch {
                    if let err = error as? LibreError {
                      completion(.failure(err))
