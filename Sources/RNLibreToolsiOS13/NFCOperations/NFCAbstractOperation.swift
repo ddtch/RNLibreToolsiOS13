@@ -368,6 +368,6 @@ fileprivate extension TimeInterval {
         let ms = Int((self.truncatingRemainder(dividingBy: 1)) * 1000)
         let seconds = time % 60
 
-        return String(format: "%0.2d.%0.3d", hours, minutes, seconds, ms)
+        return String(format: "%0.2d.%0.3d", seconds, ms)
     }
 }
