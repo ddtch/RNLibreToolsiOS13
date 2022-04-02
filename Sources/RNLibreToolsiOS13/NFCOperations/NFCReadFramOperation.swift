@@ -4,16 +4,10 @@ import Foundation
 final class NFCReadFramOperation: NFCAbstractOperation {
     
     override func performTask(tag: NFCISO15693Tag, sensor: Sensor) async throws {
-        let securityManager = SecurityManager(sensor: sensor, tag: tag, logger: logger)
+        let securityManager = SecurityManager(sensor: sensor, tag: tag, toolbox: LibreToolbox(logger: logger, debugLevel: debugLevel))
         try await securityManager.passSecurityChallengeIfNeeded()
-        let blocks = sensor.readFramBlocksToRead
-        
-        let (start, data) = try await sensor.securityGeneration < 2 ?
-        sensor.read(tag: tag, fromBlock: 0, count: blocks) : sensor.readBlocks(tag: tag, from: 0, count: blocks)
-        sensor.lastReadingDate = Date()
-        sensor.fram = Data(data)
+        let data = try await sensor.readFram(tag: tag)
         try await sensor.scanHistory(tag: tag)
-        logger.info(data.hexDump(header: "NFC: did read \(data.count / 8) FRAM blocks:", startBlock: start))
         try await securityManager.passPostSecurityChallengedIfNeeded(data: data)
     }
 }
@@ -30,16 +24,5 @@ extension Sensor {
         }
         
         return [["sensorInfo": jsonString]]
-    }
-}
-
-fileprivate extension Sensor {
-    
-    var readFramBlocksToRead: Int {
-        switch type {
-        case .libre1: return 244
-        case .libreProH: return 22 + 24 // (32 * 6 / 8)
-        default: return 43
-        }
     }
 }
