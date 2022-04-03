@@ -2,7 +2,7 @@ import Foundation
 import CoreNFC
 
 
-class Libre3: Sensor {
+class Libre3: AbstractLibre {
 
 
     enum State: UInt8, CustomStringConvertible {
@@ -365,6 +365,7 @@ class Libre3: Sensor {
         return try await super.readBlocks(tag: tag, from: start, count: blocks, requesting: requesting)
     }
     
+    /*
     override func parsePatchInfo(tag: NFCISO15693Tag) async {
         if patchInfo.count == 28 {
             // TODO: ignore the first two bytes A5 00?
@@ -402,6 +403,7 @@ class Libre3: Sensor {
             logger.error("libre 3 output exception: \(error.localizedDescription)")
         }
     }
+     */
 
 
     func send(securityCommand cmd: SecurityCommand) {

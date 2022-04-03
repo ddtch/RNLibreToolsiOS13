@@ -101,7 +101,7 @@ class NFCAbstractOperation: NSObject, NFCTagReaderSessionDelegate {
 
         guard let firstTag = tags.first else {
             logger.warning("No tags")
-            return            
+            return
         }
     
         // TODO: process more than one tag?
@@ -127,11 +127,11 @@ class NFCAbstractOperation: NSObject, NFCTagReaderSessionDelegate {
             do {
                 let (patchInfo, systemInfo) = try await readPatchInfo(tag: tag, withRetries: 5)
             
-                let sensor = await Sensor.build(tag: tag,
+                let toolbox = LibreToolbox(logger: logger, debugLevel: debugLevel)
+                let sensorFactory = SensorFactory(toolbox: toolbox)
+                let sensor = await sensorFactory.build(tag: tag,
                                   patchInfo: patchInfo,
-                                  systemInfo: systemInfo,
-                                  logger: logger,
-                                debugLevel: debugLevel)
+                                  systemInfo: systemInfo)
                             
                 try await self?.performTask(tag: tag, sensor: sensor)
                 session.invalidate()
@@ -252,33 +252,13 @@ enum IS015693Error: Int, CustomStringConvertible {
     }
 }
 
-struct NFCCommand {
-    let code: Int
-    var parameters: Data = Data()
-    var description: String = ""
-}
-
-
-extension Sensor {
+extension AbstractLibre {
 
     var backdoor: Data {
         switch self.type {
         case .libre1:    return Data([0xc2, 0xad, 0x75, 0x21])
         case .libreProH: return Data([0xc2, 0xad, 0x00, 0x90])
         default:         return Data([0xde, 0xad, 0xbe, 0xef])
-        }
-    }
-
-    var activationCommand: NFCCommand {
-        switch self.type {
-        case .libre1:
-            return NFCCommand(code: 0xA0, parameters: backdoor, description: "activate")
-        case .libreProH:
-            return NFCCommand(code: 0xA0, parameters: backdoor + readerSerial, description: "activate")
-        case .libre2:
-            return nfcCommand(.activate)
-        default:
-            return NFCCommand(code: 0x00)
         }
     }
 
@@ -307,47 +287,6 @@ extension Sensor {
     /// block 04e4 => error 0x10 (.blockNotAvailable)
     var lockBlockCommand: NFCCommand   { NFCCommand(code: 0xB2, description: "B2 lock block") }
 
-
-    enum Subcommand: UInt8, CustomStringConvertible {
-        case unlock          = 0x1a    // lets read FRAM in clear and dump further blocks with B0/B3
-        case activate        = 0x1b
-        case enableStreaming = 0x1e
-        case getSessionInfo  = 0x1f    // GEN_SECURITY_CMD_GET_SESSION_INFO
-        case unknown0x10     = 0x10    // returns the number of parameters + 3
-        case unknown0x1c     = 0x1c
-        case unknown0x1d     = 0x1d    // disables Bluetooth
-        // Gen2
-        case readChallenge   = 0x20    // returns 25 bytes
-        case readBlocks      = 0x21
-        case readAttribute   = 0x22    // returns 6 bytes ([0]: sensor state)
-        var description: String {
-            switch self {
-            case .unlock:          return "unlock"
-            case .activate:        return "activate"
-            case .enableStreaming: return "enable BLE streaming"
-            case .getSessionInfo:  return "get session info"
-            case .readChallenge:   return "read security challenge"
-            case .readBlocks:      return "read FRAM blocks"
-            case .readAttribute:   return "read patch attribute"
-            default:               return "[unknown: 0x\(rawValue.hex)]"
-            }
-        }
-    }
-
-
-    /// The customRequestParameters for 0xA1 are built by appending
-    /// code + parameters + usefulFunction(uid, code, secret)
-    func nfcCommand(_ code: Subcommand, parameters: Data = Data(), secret: UInt16 = 0) -> NFCCommand {
-
-        var parameters =  parameters
-        let secret = secret != 0 ? secret : Libre2.secret
-
-        if code.rawValue < 0x20 {
-            parameters += Libre2.usefulFunction(id: uid, x: UInt16(code.rawValue), y: secret)
-        }
-
-        return NFCCommand(code: 0xA1, parameters: Data([code.rawValue]) + parameters, description: code.description)
-    }
 }
 
 fileprivate extension NFCAbstractOperation {

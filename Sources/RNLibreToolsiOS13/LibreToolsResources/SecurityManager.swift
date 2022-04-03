@@ -3,17 +3,19 @@ import Foundation
 
 class SecurityManager {
     
-    private let sensor: Sensor
+    private var sensor: Sensor
     private let tag: NFCISO15693Tag
     private let logger: Logging
+    private let debugLevel: Int
     
     private var authContext: Int?
     private var sessionInfo: Data?
     
-    init(sensor: Sensor, tag: NFCISO15693Tag, logger: Logging) {
+    init(sensor: Sensor, tag: NFCISO15693Tag, toolbox: LibreToolbox) {
         self.sensor = sensor
         self.tag = tag
-        self.logger = logger
+        self.logger = toolbox.logger
+        self.debugLevel = toolbox.debugLevel
     }
     
     func performSecuritySetupIfNeeded() async {
@@ -22,7 +24,7 @@ class SecurityManager {
         var commands: [NFCCommand] = [sensor.nfcCommand(.readAttribute),
                                       sensor.nfcCommand(.readChallenge)]
 
-        if sensor.debugLevel > 0 {
+        if debugLevel > 0 {
             for c in 0xA0 ... 0xDF {
                 commands.append(NFCCommand(code: c, parameters: Data(), description: c.hex))
             }
@@ -115,7 +117,7 @@ class SecurityManager {
         if let oopActivationResponse = try? JSONDecoder().decode(GlucoseSpaceActivationResponse.self, from: data) {
             logger.info("OOP: activation response: \(oopActivationResponse), activation command: \(UInt8(Int16(oopActivationResponse.activationCommand) & 0xFF).hex)")
         }
-        logger.info("\(sensor.type) computed activation command: \(sensor.activationCommand.code.hex.uppercased()) \(sensor.activationCommand.parameters.hex.uppercased())" )
+//        logger.info(x"x\(sensor.type) computed activation command: \(sensor.activationCommand.code.hex.uppercased()) \(sensor.activationCommand.parameters.hex.uppercased())" )
     }
     
     private func postOOP(_ endpoint: String, _ jsonObject: Any) async throws -> Any {
