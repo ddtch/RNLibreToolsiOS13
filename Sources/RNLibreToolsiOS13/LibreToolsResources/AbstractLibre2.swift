@@ -22,20 +22,20 @@ let libre2DumpMap = [
 
 class AbstractLibre2: AbstractLibre {
     
-    override var fram: Data {
-        didSet {
-            encryptedFram = Data()
-            if UInt16(fram[0...1]) != crc16(fram[2...23]) {
-                encryptedFram = fram
-                if fram.count >= 344 {
-                    if let decryptedFRAM = try? decryptFRAM(data: fram) {
-                        fram = decryptedFRAM
-                    }
+    override func update(fram: Data) {
+        self.fram = fram
+        encryptedFram = Data()
+        if UInt16(fram[0...1]) != crc16(fram[2...23]) {
+            encryptedFram = fram
+            if fram.count >= 344 {
+                if let decryptedFRAM = try? decryptFRAM(data: fram) {
+                    self.fram = decryptedFRAM
                 }
             }
-            parseFRAM()
         }
+        parseFRAM()
     }
+
 
     private let libre2Secret: UInt16 = 0x1b6a
     
