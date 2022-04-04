@@ -185,13 +185,7 @@ class AbstractLibre: ObservableObject, Sensor {
     var factoryTrend: [Glucose] { trend.map { factoryGlucose(rawGlucose: $0, calibrationInfo: calibrationInfo) }}
     var factoryHistory: [Glucose] { history.map { factoryGlucose(rawGlucose: $0, calibrationInfo: calibrationInfo) }}
 
-    open var fram: Data = Data() {
-        didSet {
-            encryptedFram = Data()
-            parseFRAM()
-        }
-    }
-    
+    var fram = Data()
     var encryptedFram: Data = Data()
 
     // Libre 2 and BLE streaming parameters
@@ -201,6 +195,12 @@ class AbstractLibre: ObservableObject, Sensor {
     
     // Gen2
     var streamingAuthenticationData: Data = Data(count: 10)    // formed when passed as third inout argument to verifyEnableStreamingResponse()
+    
+    open func update(fram: Data) {
+        self.fram = fram
+        encryptedFram = Data()
+        parseFRAM()
+    }
 
     open func scanHistory(tag: NFCISO15693Tag) async throws {}
     
@@ -367,12 +367,12 @@ class AbstractLibre: ObservableObject, Sensor {
         let (start, data) = try await securityGeneration < 2 ?
         read(tag: tag, fromBlock: 0, count: blocks) : readBlocks(tag: tag, from: 0, count: blocks)
         lastReadingDate = Date()
-        fram = Data(data)
+        update(fram: Data(data))
         logger.info(data.hexDump(header: "NFC: did read \(data.count / 8) FRAM blocks:", startBlock: start))
         return fram
     }
 
-    func parseFRAM() {
+    open func parseFRAM() {
         updateCRCReport()
         guard !crcReport.contains("FAILED") else {
             state = .unknown
